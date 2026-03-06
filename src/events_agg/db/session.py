@@ -16,8 +16,8 @@ engine: AsyncEngine = create_async_engine(settings.database_url,
 # Создаем асинхронную локальную сессию
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
-    expire_on_commit=False,
-    class_=AsyncSession
+    class_=AsyncSession,
+    expire_on_commit=False
 )
 
 
