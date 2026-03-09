@@ -12,7 +12,7 @@ class EventsRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get(self, event_id: int) -> Event | None:
+    async def get(self, event_id: str) -> Event | None:
         stmt = (
             select(Event)
             .options(selectinload(Event.place))
@@ -100,4 +100,3 @@ class EventsRepository:
             event.created_at = provider_event.created_at
             event.status_changed_at = provider_event.status_changed_at
             event.place_id = provider_event.place.id
-

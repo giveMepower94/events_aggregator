@@ -71,7 +71,7 @@ async def list_events(
 
 @router.get("/{event_id}", response_model=EventDeatailSchema)
 async def get_event(
-    event_id: int,
+    event_id: str,
     session: AsyncSession = Depends(get_session)
 ) -> EventDeatailSchema:
 

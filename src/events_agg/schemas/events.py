@@ -1,9 +1,11 @@
+from uuid import UUID
+
 from datetime import datetime
 from pydantic import BaseModel
 
 
 class PlaceShortSchema(BaseModel):
-    id: int
+    id: UUID
     name: str
     city: str
     address: str
@@ -14,7 +16,7 @@ class PlaceSchema(PlaceShortSchema):
 
 
 class EventListItemSchema(BaseModel):
-    id: int
+    id: UUID
     name: str
     place: PlaceShortSchema
     event_time: datetime
@@ -24,7 +26,7 @@ class EventListItemSchema(BaseModel):
 
 
 class EventDeatailSchema(BaseModel):
-    id: int
+    id: UUID
     name: str
     place: PlaceSchema
     event_time: datetime
