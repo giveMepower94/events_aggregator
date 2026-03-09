@@ -4,8 +4,11 @@ RUN addgroup --system --gid 1000 appuser && \
     adduser --system --uid 1000 --ingroup appuser appuser
 
 WORKDIR /app
-COPY --chown=appuser:appuser app.py .
+COPY --chown=appuser:appuser . .
+
+RUN pip install --no-cache-dir uv && \
+    uv sync --frozen
 
 USER appuser
 
-CMD ["python", "app.py"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
