@@ -4,6 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.events_agg.db.session import get_session
 from src.events_agg.repositories.events import EventsRepository
+from src.events_agg.clients.events_provider import EventsProviderClient
+from src.events_agg.schemas.seats import EventSeatsResponseSchema
+from src.events_agg.usecases.get_event_seats import GetEventSeatsUseCase
 from src.events_agg.schemas.events import (
     EventListItemSchema,
     EventDeatailSchema,
@@ -96,3 +99,14 @@ async def get_event(
         status=event.status,
         number_of_visitors=event.number_of_visitors,
     )
+
+
+@router.get("/{event_id}/seats", response_model=EventSeatsResponseSchema)
+async def get_event_seats(
+    event_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> EventSeatsResponseSchema:
+    repo = EventsRepository(session)
+    client = EventsProviderClient()
+    usecase = GetEventSeatsUseCase(events=repo, client=client)
+    return await usecase.execute(event_id)
