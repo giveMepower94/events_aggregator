@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Caching
     seats_cache_ttl_seconds: int = 30
 
+    sync_hour: int = 3
+    sync_minute: int = 0
+
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:

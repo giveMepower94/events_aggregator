@@ -82,11 +82,6 @@ class EventsProviderClient:
             "seat": seat,
         }
 
-        # DEBUG
-        print("REGISTER URL:", url)
-        print("HEADERS:", {"x-api-key": bool(self.api_key)})
-        print("PAYLOAD:", payload)
-
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=False) as client:
             response = await client.post(url, headers=self.headers, json=payload)
 
