@@ -21,9 +21,11 @@ class SyncEventsUseCase:
     async def execute(self) -> dict[str, int | str]:
         state = await self.sync_state.get_or_create()
 
-        changed_at = "2026-03-09"
-        if state.last_changed_at is not None:
-            changed_at = state.last_changed_at.date().isoformat()
+        changed_at = (
+            state.last_changed_at.date().isoformat()
+            if state.last_changed_at is not None
+            else "1970-01-01"
+        )
 
         await self.sync_state.update_status(sync_status="running")
         await self.session.commit()
@@ -38,6 +40,7 @@ class SyncEventsUseCase:
 
                 if max_changed_at is None or provider_event.changed_at > max_changed_at:
                     max_changed_at = provider_event.changed_at
+
             await self.sync_state.update_status(
                 sync_status="success",
                 last_sync_time=datetime.now(timezone.utc),
@@ -52,6 +55,7 @@ class SyncEventsUseCase:
             )
             await self.session.commit()
             raise
+
         return {
             "status": "success",
             "processed": processed,
