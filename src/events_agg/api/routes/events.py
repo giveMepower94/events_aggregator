@@ -35,7 +35,7 @@ def build_event_item(event) -> EventListItemSchema:
     )
 
 
-@router.get("/", response_model=PaginatedEventsSchema)
+@router.get("", response_model=PaginatedEventsSchema)
 async def list_events(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
