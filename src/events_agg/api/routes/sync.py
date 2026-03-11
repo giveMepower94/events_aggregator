@@ -1,18 +1,11 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, BackgroundTasks
 
-from src.events_agg.clients.events_provider import EventsProviderClient
-from src.events_agg.db.session import get_session
-from src.events_agg.usecases.sync_events import SyncEventsUseCase
-
+from src.events_agg.usecases.run_sync_job import run_sync_job
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
 
-@router.post("/trigger")
-async def trigger_sync(
-    session: AsyncSession = Depends(get_session)
-) -> dict[str, int | str]:
-    client = EventsProviderClient()
-    usecase = SyncEventsUseCase(session=session, client=client)
-    return await usecase.execute()
+@router.post("/trigger", status_code=202)
+async def trigger_sync(background_tasks: BackgroundTasks) -> dict[str, str]:
+    background_tasks.add_task(run_sync_job)
+    return {"status": "accepted"}

@@ -3,6 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
 from src.events_agg.api.routes.events import router as events_router
 from src.events_agg.api.routes.sync import router as sync_router
 from src.events_agg.api.routes.tickets import router as tickets_router
@@ -26,6 +30,14 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Events Aggregator", lifespan=lifespan)
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": exc.errors()},
+    )
+
 app.include_router(events_router)
 app.include_router(sync_router)
 app.include_router(tickets_router)
@@ -34,4 +46,3 @@ app.include_router(tickets_router)
 @app.get("/api/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(status="ok")
-
