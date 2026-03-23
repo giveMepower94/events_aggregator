@@ -7,6 +7,7 @@ from src.events_agg.clients.events_provider import EventsProviderClient
 from src.events_agg.core.seats import seat_exists_in_pattern
 from src.events_agg.core.state import seats_cache
 from src.events_agg.repositories.events import EventsRepository
+from src.events_agg.repositories.outbox import OutboxRepository
 from src.events_agg.repositories.tickets import TicketsRepository
 
 from src.events_agg.schemas.tickets import CreateTicketRequestSchema, CreateTicketResponseSchema
@@ -18,11 +19,13 @@ class CreateTicketUseCase:
         session: AsyncSession,
         events: EventsRepository,
         tickets: TicketsRepository,
+        outbox: OutboxRepository,
         client: EventsProviderClient,
     ) -> None:
         self.session = session
         self.events = events
         self.tickets = tickets
+        self.outbox = outbox
         self.client = client
 
     async def execute(
@@ -70,7 +73,7 @@ class CreateTicketUseCase:
             seat=data.seat,
         )
 
-        await self.tickets.create(
+        ticket = await self.tickets.create(
             ticket_id=provider_response.ticket_id,
             event_id=data.event_id,
             first_name=data.first_name,
@@ -78,6 +81,12 @@ class CreateTicketUseCase:
             email=data.email,
             seat=data.seat,
         )
+
+        await self.outbox.create_ticket_purchased(
+            ticket=ticket,
+            event_name=event.name,
+        )
+
         await self.session.commit()
 
         seats_cache.delete(f"event_seats:{data.event_id}")

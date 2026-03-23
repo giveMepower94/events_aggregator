@@ -7,15 +7,16 @@ from sqlalchemy import pool, engine_from_config
 from alembic import context
 from src.events_agg.db.base import Base
 from src.events_agg.models.event import Event, Place  # noqa
+from src.events_agg.models.outbox import OutboxMessage  # noqa
 from src.events_agg.models.sync_state import SyncState  # noqa
 from src.events_agg.models.ticket import Ticket  # noqa
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("POSTGRES_CONNECTION_STRING")
 
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set")
+    raise ValueError("POSTGRES_CONNECTION_STRING is not set")
 
 SYNC_DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg")
 

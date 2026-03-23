@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,6 +13,9 @@ from src.events_agg.api.routes.events import router as events_router
 from src.events_agg.api.routes.sync import router as sync_router
 from src.events_agg.api.routes.tickets import router as tickets_router
 from src.events_agg.core.scheduler import create_scheduler
+from src.events_agg.usecases.run_outbox_worker import run_outbox_worker
+
+logger = logging.getLogger(__name__)
 
 
 class HealthResponse(BaseModel):
@@ -22,9 +27,19 @@ async def lifespan(_: FastAPI):
     scheduler = create_scheduler()
     scheduler.start()
 
+    stop_event = asyncio.Event()
+    outbox_worker_task = asyncio.create_task(run_outbox_worker(stop_event))
+
     try:
         yield
     finally:
+        stop_event.set()
+
+        try:
+            await outbox_worker_task
+        except Exception:
+            logger.exception("Outbox worker stopped with error")
+
         scheduler.shutdown()
 
 

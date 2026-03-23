@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     sync_hour: int = 3
     sync_minute: int = 0
 
+    outbox_poll_interval_seconds: int = Field(
+        default=5,
+        alias="OUTBOX_POLL_INTERVAL_SECONDS",
+    )
+    outbox_batch_size: int = Field(
+        default=100,
+        alias="OUTBOX_BATCH_SIZE",
+    )
+
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
