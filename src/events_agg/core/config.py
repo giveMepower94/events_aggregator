@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     events_provider_api_key: str = Field(alias="EVENTS_PROVIDER_API_KEY")
     database_url: str = Field(alias="POSTGRES_CONNECTION_STRING")
 
+    capashino_base_url: str = Field(alias="CAPASHINO_BASE_URL")
+    capashino_api_key: str = Field(alias="CAPASHINO_API_KEY")
+
     # Caching
     seats_cache_ttl_seconds: int = 30
 
@@ -25,6 +28,10 @@ class Settings(BaseSettings):
     outbox_batch_size: int = Field(
         default=100,
         alias="OUTBOX_BATCH_SIZE",
+    )
+    outbox_max_attempts: int = Field(
+        default=10,
+        alias="OUTBOX_MAX_ATTEMPTS",
     )
 
     @field_validator("database_url", mode="before")
