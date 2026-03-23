@@ -25,7 +25,7 @@ class CancelTicketUseCase:
         self.client = client
 
     async def execute(self, ticket_id: str) -> CancelTicketResponseSchema:
-        ticket = await self.tickets.get_tickets_by_event_id(ticket_id)
+        ticket = await self.tickets.get_by_ticket_id(ticket_id)
         if ticket is None:
             raise HTTPException(status_code=404, detail="Ticket not found")
 

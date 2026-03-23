@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import httpx
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,13 +66,28 @@ class CreateTicketUseCase:
         if data.seat not in seats_response.seats:
             raise HTTPException(status_code=400, detail="Seat is not available")
 
-        provider_response = await self.client.register(
-            event_id=data.event_id,
-            first_name=data.first_name,
-            last_name=data.last_name,
-            email=data.email,
-            seat=data.seat,
-        )
+        try:
+            provider_response = await self.client.register(
+                event_id=data.event_id,
+                first_name=data.first_name,
+                last_name=data.last_name,
+                email=data.email,
+                seat=data.seat,
+            )
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+
+            try:
+                payload = exc.response.json()
+                if isinstance(payload, dict):
+                    detail = payload.get("detail") or payload.get("message") or detail
+            except Exception:
+                pass
+
+            if exc.response.status_code == 400:
+                raise HTTPException(status_code=400, detail=detail)
+
+            raise HTTPException(status_code=502, detail="Events Provider error")
 
         ticket = await self.tickets.create(
             ticket_id=provider_response.ticket_id,
