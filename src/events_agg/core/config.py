@@ -14,6 +14,9 @@ class Settings(BaseSettings):
 
     capashino_base_url: str = Field(alias="CAPASHINO_BASE_URL")
     capashino_api_key: str = Field(alias="CAPASHINO_API_KEY")
+    
+    sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+    app_env: str = Field(default="local", alias="APP_ENV")
 
     # Caching
     seats_cache_ttl_seconds: int = 30
