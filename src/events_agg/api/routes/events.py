@@ -9,7 +9,7 @@ from src.events_agg.schemas.seats import EventSeatsResponseSchema
 from src.events_agg.usecases.get_event_seats import GetEventSeatsUseCase
 from src.events_agg.schemas.events import (
     EventListItemSchema,
-    EventDeatailSchema,
+    EventDetailSchema,
     PlaceShortSchema,
     PlaceSchema,
     PaginatedEventsSchema)
@@ -72,11 +72,11 @@ async def list_events(
     )
 
 
-@router.get("/{event_id}", response_model=EventDeatailSchema)
+@router.get("/{event_id}", response_model=EventDetailSchema)
 async def get_event(
     event_id: str,
     session: AsyncSession = Depends(get_session)
-) -> EventDeatailSchema:
+) -> EventDetailSchema:
 
     repo = EventsRepository(session)
     event = await repo.get(event_id)
@@ -84,7 +84,7 @@ async def get_event(
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    return EventDeatailSchema(
+    return EventDetailSchema(
         id=event.id,
         name=event.name,
         place=PlaceSchema(

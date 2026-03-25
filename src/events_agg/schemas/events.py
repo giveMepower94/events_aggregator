@@ -25,7 +25,7 @@ class EventListItemSchema(BaseModel):
     number_of_visitors: int
 
 
-class EventDeatailSchema(BaseModel):
+class EventDetailSchema(BaseModel):
     id: UUID
     name: str
     place: PlaceSchema
