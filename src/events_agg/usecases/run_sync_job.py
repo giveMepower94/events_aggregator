@@ -18,4 +18,4 @@ async def run_sync_job() -> None:
             logger.info("Scheduled sync job finished: %s", result)
         except Exception:
             logger.exception("Scheduled sync job failed")
-            raise
+            await session.rollback()
