@@ -9,7 +9,6 @@ from src.events_agg.schemas.provider import (
     ProviderUnregisterResponseSchema
 )
 
-
 from src.events_agg.core.config import settings
 
 

@@ -1,18 +1,21 @@
 from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.events_agg.api.dependencies import get_events_provider_client
+from src.events_agg.clients.events_provider import EventsProviderClient
 from src.events_agg.db.session import get_session
 from src.events_agg.repositories.events import EventsRepository
-from src.events_agg.clients.events_provider import EventsProviderClient
+from src.events_agg.schemas.events import (
+    EventDetailSchema,
+    EventListItemSchema,
+    PaginatedEventsSchema,
+    PlaceSchema,
+    PlaceShortSchema,
+)
 from src.events_agg.schemas.seats import EventSeatsResponseSchema
 from src.events_agg.usecases.get_event_seats import GetEventSeatsUseCase
-from src.events_agg.schemas.events import (
-    EventListItemSchema,
-    EventDetailSchema,
-    PlaceShortSchema,
-    PlaceSchema,
-    PaginatedEventsSchema)
 
 
 router = APIRouter(prefix="/api/events", tags=["events"])
@@ -40,17 +43,20 @@ async def list_events(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     date_from: date | None = Query(default=None),
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
 ) -> PaginatedEventsSchema:
-
     repo = EventsRepository(session)
     items, total = await repo.list_paginated(
         page=page,
         page_size=page_size,
-        date_from=date_from
+        date_from=date_from,
     )
 
-    next_url = f"/api/events?page={page + 1}&page_size={page_size}" if page * page_size < total else None
+    next_url = (
+        f"/api/events?page={page + 1}&page_size={page_size}"
+        if page * page_size < total
+        else None
+    )
     previous_url = (
         f"/api/events?page={page - 1}&page_size={page_size}"
         if page > 1
@@ -68,16 +74,15 @@ async def list_events(
         count=total,
         next=next_url,
         previous=previous_url,
-        results=[build_event_item(event) for event in items]
+        results=[build_event_item(event) for event in items],
     )
 
 
 @router.get("/{event_id}", response_model=EventDetailSchema)
 async def get_event(
     event_id: str,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
 ) -> EventDetailSchema:
-
     repo = EventsRepository(session)
     event = await repo.get(event_id)
 
@@ -105,8 +110,8 @@ async def get_event(
 async def get_event_seats(
     event_id: str,
     session: AsyncSession = Depends(get_session),
+    client: EventsProviderClient = Depends(get_events_provider_client),
 ) -> EventSeatsResponseSchema:
     repo = EventsRepository(session)
-    client = EventsProviderClient()
     usecase = GetEventSeatsUseCase(events=repo, client=client)
     return await usecase.execute(event_id)
