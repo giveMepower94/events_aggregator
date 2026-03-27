@@ -3,6 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.events_agg.core.exceptions import EventNotFoundError, EventNotPublishedError
 from src.events_agg.api.dependencies import get_events_provider_client
 from src.events_agg.clients.events_provider import EventsProviderClient
 from src.events_agg.db.session import get_session
@@ -114,4 +115,14 @@ async def get_event_seats(
 ) -> EventSeatsResponseSchema:
     repo = EventsRepository(session)
     usecase = GetEventSeatsUseCase(events=repo, client=client)
-    return await usecase.execute(event_id)
+
+    try:
+        return await usecase.execute(event_id)
+    except EventNotFoundError:
+        raise HTTPException(status_code=404, detail="Event not found")
+    except EventNotPublishedError:
+        raise HTTPException(
+            status_code=400,
+            detail="Seats are available only for published events",
+        )
+

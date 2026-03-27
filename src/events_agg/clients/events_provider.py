@@ -2,29 +2,33 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from src.events_agg.clients.events_paginator import EventsPaginator
+from src.events_agg.core.config import settings
 from src.events_agg.schemas.provider import (
     ProviderEventsPageSchema,
     ProviderRegisterResponseSchema,
     ProviderSeatsSchema,
-    ProviderUnregisterResponseSchema
+    ProviderUnregisterResponseSchema,
 )
-
-from src.events_agg.core.config import settings
 
 
 class EventsProviderClient:
     def __init__(self) -> None:
-        self.base_url = settings.events_provider_base_url.rstrip('/')
+        self.base_url = settings.events_provider_base_url.rstrip("/")
         self.api_key = settings.events_provider_api_key
 
     @property
     def headers(self) -> dict[str, str]:
         return {
             "x-api-key": self.api_key,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-    async def get_events_page(self, changed_at: str, url: str | None = None) -> ProviderEventsPageSchema:
+    async def get_events_page(
+        self,
+        changed_at: str,
+        url: str | None = None,
+    ) -> ProviderEventsPageSchema:
         request_url = url or f"{self.base_url}/api/events/"
 
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
@@ -43,18 +47,8 @@ class EventsProviderClient:
         response.raise_for_status()
         return ProviderEventsPageSchema.model_validate(response.json())
 
-    async def iter_events(self, changed_at: str) -> AsyncIterator:
-        next_url: str | None = None
-
-        while True:
-            page = await self.get_events_page(changed_at=changed_at, url=next_url)
-            for event in page.results:
-                yield event
-
-            if page.next is None:
-                break
-
-            next_url = page.next
+    def iter_events(self, changed_at: str) -> AsyncIterator:
+        return EventsPaginator(client=self, changed_at=changed_at)
 
     async def get_seats(self, event_id: str) -> ProviderSeatsSchema:
         url = f"{self.base_url}/api/events/{event_id}/seats/"

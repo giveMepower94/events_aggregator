@@ -1,7 +1,6 @@
-from fastapi import HTTPException
-
 from src.events_agg.clients.events_provider import EventsProviderClient
 from src.events_agg.core.config import settings
+from src.events_agg.core.exceptions import EventNotFoundError, EventNotPublishedError
 from src.events_agg.core.state import seats_cache
 from src.events_agg.repositories.events import EventsRepository
 from src.events_agg.schemas.seats import EventSeatsResponseSchema
@@ -19,13 +18,10 @@ class GetEventSeatsUseCase:
     async def execute(self, event_id: str) -> EventSeatsResponseSchema:
         event = await self.events.get(event_id)
         if event is None:
-            raise HTTPException(status_code=404, detail="Event not found")
+            raise EventNotFoundError()
 
         if event.status != "published":
-            raise HTTPException(
-                status_code=400,
-                detail="Seats are available only for published events",
-            )
+            raise EventNotPublishedError()
 
         cache_key = f"event_seats:{event_id}"
         cached = seats_cache.get(cache_key)

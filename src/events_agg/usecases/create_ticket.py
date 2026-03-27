@@ -1,11 +1,23 @@
 from datetime import datetime, timezone
-import httpx
 
-from fastapi import HTTPException
+import httpx
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.events_agg.clients.events_provider import EventsProviderClient
+from src.events_agg.core.exceptions import (
+    EventAlreadyStartedError,
+    EventNotFoundError,
+    EventNotPublishedError,
+    IdempotencyConflictError,
+    IdempotencyInProgressError,
+    IdempotencyStateError,
+    ProviderBadRequestError,
+    ProviderError,
+    RegistrationDeadlinePassedError,
+    SeatDoesNotExistError,
+    SeatNotAvailableError,
+)
 from src.events_agg.core.idempotency import build_ticket_request_hash
 from src.events_agg.core.seats import seat_exists_in_pattern
 from src.events_agg.core.state import seats_cache
@@ -13,7 +25,6 @@ from src.events_agg.repositories.events import EventsRepository
 from src.events_agg.repositories.idempotency import IdempotencyRepository
 from src.events_agg.repositories.outbox import OutboxRepository
 from src.events_agg.repositories.tickets import TicketsRepository
-
 from src.events_agg.schemas.tickets import CreateTicketRequestSchema, CreateTicketResponseSchema
 
 
@@ -41,30 +52,20 @@ class CreateTicketUseCase:
     ) -> CreateTicketResponseSchema:
         existing = await self.idempotency.get_by_key(idempotency_key)
         if existing is None:
-            raise HTTPException(
-                status_code=500,
-                detail="Idempotency state is inconsistent",
-            )
+            raise IdempotencyStateError()
 
         if existing.request_hash != request_hash:
-            raise HTTPException(
-                status_code=409,
-                detail="Idempotency key conflict"
-            )
+            raise IdempotencyConflictError()
 
         if existing.status == "completed" and existing.ticket_id:
             return CreateTicketResponseSchema(ticket_id=existing.ticket_id)
 
-        raise HTTPException(
-            status_code=409,
-            detail="Request with this idempotency_key is already being processed",
-        )
+        raise IdempotencyInProgressError()
 
     async def execute(
         self,
         data: CreateTicketRequestSchema,
     ) -> CreateTicketResponseSchema:
-
         request_hash = build_ticket_request_hash(data)
         idempotency_record = None
 
@@ -75,15 +76,15 @@ class CreateTicketUseCase:
                     idempotency_key=data.idempotency_key,
                     request_hash=request_hash,
                 )
+
         try:
             event = await self.events.get(data.event_id)
             if event is None:
-                raise HTTPException(status_code=404, detail="Event not found")
+                raise EventNotFoundError()
+
             if event.status != "published":
-                raise HTTPException(
-                    status_code=400,
-                    detail="Registration is available only for published events",
-                )
+                raise EventNotPublishedError()
+
             now = datetime.now(timezone.utc)
             event_time = event.event_time
             registration_deadline = event.registration_deadline
@@ -95,20 +96,17 @@ class CreateTicketUseCase:
                 registration_deadline = registration_deadline.replace(tzinfo=timezone.utc)
 
             if now >= registration_deadline:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Registration deadline has passed",
-                )
+                raise RegistrationDeadlinePassedError()
 
             if now >= event_time:
-                raise HTTPException(status_code=400, detail="Event has already started")
+                raise EventAlreadyStartedError()
 
             if not seat_exists_in_pattern(data.seat, event.place.seats_pattern):
-                raise HTTPException(status_code=400, detail="Seat does not exist")
+                raise SeatDoesNotExistError()
 
             seats_response = await self.client.get_seats(data.event_id)
             if data.seat not in seats_response.seats:
-                raise HTTPException(status_code=400, detail="Seat is not available")
+                raise SeatNotAvailableError()
 
             if data.idempotency_key:
                 try:
@@ -122,6 +120,7 @@ class CreateTicketUseCase:
                         idempotency_key=data.idempotency_key,
                         request_hash=request_hash,
                     )
+
             try:
                 provider_response = await self.client.register(
                     event_id=data.event_id,
@@ -143,9 +142,9 @@ class CreateTicketUseCase:
                 await self.session.rollback()
 
                 if exc.response.status_code == 400:
-                    raise HTTPException(status_code=400, detail=detail)
+                    raise ProviderBadRequestError(detail)
 
-                raise HTTPException(status_code=502, detail="Events Provider error")
+                raise ProviderError()
 
             ticket = await self.tickets.create(
                 ticket_id=provider_response.ticket_id,
@@ -166,15 +165,13 @@ class CreateTicketUseCase:
                     record=idempotency_record,
                     ticket_id=ticket.ticket_id,
                 )
+
             await self.session.commit()
 
             seats_cache.delete(f"event_seats:{data.event_id}")
 
             return CreateTicketResponseSchema(ticket_id=provider_response.ticket_id)
 
-        except HTTPException:
-            await self.session.rollback()
-            raise
         except Exception:
             await self.session.rollback()
             raise

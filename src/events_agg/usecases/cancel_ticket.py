@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
 
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 from src.events_agg.clients.events_provider import EventsProviderClient
+from src.events_agg.core.exceptions import (
+    CancellationNotAllowedError,
+    EventNotFoundError,
+    TicketNotFoundError,
+)
 from src.events_agg.core.state import seats_cache
 from src.events_agg.repositories.events import EventsRepository
 from src.events_agg.repositories.tickets import TicketsRepository
@@ -27,11 +30,11 @@ class CancelTicketUseCase:
     async def execute(self, ticket_id: str) -> CancelTicketResponseSchema:
         ticket = await self.tickets.get_by_ticket_id(ticket_id)
         if ticket is None:
-            raise HTTPException(status_code=404, detail="Ticket not found")
+            raise TicketNotFoundError()
 
         event = await self.events.get(ticket.event_id)
         if event is None:
-            raise HTTPException(status_code=404, detail="Event not found")
+            raise EventNotFoundError()
 
         event_time = event.event_time
         if event_time.tzinfo is None:
@@ -39,10 +42,7 @@ class CancelTicketUseCase:
 
         now = datetime.now(timezone.utc)
         if now >= event_time:
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot cancel registration for a past event",
-            )
+            raise CancellationNotAllowedError()
 
         await self.client.unregister(event_id=event.id, ticket_id=ticket_id)
         await self.tickets.delete(ticket)
@@ -51,3 +51,4 @@ class CancelTicketUseCase:
         seats_cache.delete(f"event_seats:{event.id}")
 
         return CancelTicketResponseSchema(success=True)
+

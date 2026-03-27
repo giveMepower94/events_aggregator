@@ -3,14 +3,11 @@ import logging
 from contextlib import asynccontextmanager
 
 import sentry_sdk
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-
-from fastapi import FastAPI
-from pydantic import BaseModel
-
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi import Request
+from pydantic import BaseModel
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 from src.events_agg.api.routes.events import router as events_router
 from src.events_agg.api.routes.sync import router as sync_router
